@@ -1,4 +1,5 @@
 
+.include "tcb.inc"
 .equ systick_csr, 0xE000E010
 .equ systick_rvr, 0xE000E014
 .equ systick_cvr, 0xE000E018
@@ -19,18 +20,21 @@ vector_table:
 .section .text
 .align 1
 .thumb_func
+.syntax unified
 .type reset_handler, %function 
 reset_handler:
 
     ldr r0, =_task1_stack_top
+    ldr r1, =tcb_task1
+    str r0, [r1, #TCB_PSP]
     msr psp, r0
-    
+
     ldr r0, =_task2_stack_top
     sub r0, r0, #32
     
     ldr r1, =task2_code
     str r1, [r0, #24]
-    
+
     ldr r1, =0x01000000
     str r1, [r0, #28]
     
@@ -45,8 +49,8 @@ reset_handler:
     str r1, [r0, #24]       
     str r1, [r0, #28]       
 
-    ldr r1, =task2_psp
-    str r0, [r1]
+    ldr r1, =tcb_task2
+    str r0, [r1,#TCB_PSP]
 
     ldr r0, =systick_csr
     ldr r1, =systick_rvr
@@ -63,6 +67,10 @@ reset_handler:
     msr CONTROL, r0
     isb
     cpsie i
+
+    ldr r0, =tcb_task1
+    ldr r1, =current_tcb
+    str r0, [r1]
 
     ldr r0, =0xE000ED20
     ldr r1, =0xFF000000
@@ -105,44 +113,32 @@ systick_handler:
 .type pendsv_handler, %function
 
 pendsv_handler:
+    ldr r1, =current_tcb
+    ldr r2, [r1]
     mrs r0, psp
     stmdb r0!, {r4-r11}
-    ldr r1, =current_task
-    ldr r2, [r1]
-    cbz r2, save_task1
-    b save_task2
 
-    save_task2:
-        ldr r3, =task2_psp
-        str r0, [r3]
-        mov r2, #0
-        str r2, [r1]
-        b switch_tasks
+    str r0, [r2,#TCB_PSP]
+    
+    ldr r3, =tcb_task1
+    cmp r2, r3
 
-    save_task1:
-        ldr r3, =task1_psp
-        str r0, [r3]
-        mov r2, #1
-        str r2, [r1]
-        b switch_tasks
+    beq load_task2
 
-    switch_tasks:
-        cbz r2, load_task1
-        b load_task2
+    load_task1:
+        ldr r3, =tcb_task1
+        b restore_context
 
     load_task2:
-    ldr r3, =task2_psp
-    ldr r0, [r3]
-    b restore_context
+        ldr r3, =tcb_task2
+        b restore_context
 
-load_task1:
-    ldr r3, =task1_psp
-    ldr r0, [r3]
-
-restore_context:
-    ldmia r0!, {r4-r11}
-    msr psp, r0
-    bx lr
+    restore_context:
+        str r3, [r1]
+        ldr r0, [r3, #TCB_PSP]
+        ldmia r0!, {r4-r11}
+        msr psp, r0
+        bx lr
 
 .section .bss
 .align 4
@@ -154,14 +150,4 @@ _task1_stack_top:
 task2_stack:
 .space 1024
 _task2_stack_top:
-
-.align 4
-current_task:
-.word 0
-
-task1_psp:
-.word 0
-
-task2_psp:
-.word 0
 
