@@ -181,6 +181,11 @@ delay :
     
     mov r5, #TASK_BLOCKED
     str r5, [r4, #TCB_STATE]
+    
+@fire PendSV
+    ldr r0, =0xE000ED04
+    ldr r1, =0x10000000
+    str r1, [r0]
 
     cpsie i
     bx lr
