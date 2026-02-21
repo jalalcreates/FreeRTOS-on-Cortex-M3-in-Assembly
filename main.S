@@ -81,14 +81,24 @@ reset_handler:
 
     ldr r2, =current_tcb
     str r0, [r2]
+    
+@blocking task1 for testing code
+   @ ldr r0, =tcb_task1
+   @ mov r1, #TASK_BLOCKED
+   @ str r1, [r0, #TCB_STATE]
+   @ mov r1, #1000
+   @ str r1, [r0, #TCB_WAKE_TICK]
+
+   @ ldr r0, =tcb_task2
+   @ mov r1, #TASK_READY
+   @ str r1, [r0, #TCB_STATE]
 
     @for priority of PendSV and systick
-    ldr r0, =0xE000ED20 
-    ldr r1, =0xFF000000
-    str r1, [r0]
-    ldr r1, =0x00FF0000
+    ldr r0, =0xE000ED20
+    ldr r1, =0xFFFF0000
     str r1, [r0]
 
+    mov r1, #0x0
     cpsie i
 
     b task1_code
@@ -110,12 +120,70 @@ task2_code:
 .type systick_handler, %function
 
 systick_handler:
-@firing PendSV handler through ICSR
-    ldr r0, =0xE000ED04
-    ldr r1, =0x10000000
+    ldr r0, =tick_count
+    ldr r1, [r0]
+    add r1, r1, #1
     str r1, [r0]
-    bx lr
+
+    ldr r2, =tcb_linked_list_head
+    ldr r0, [r2]
+    mov r4, r0 @remember where started
     
+    check_if_blocked: 
+        ldr r2, [r0, #TCB_STATE]
+        cmp r2, #TASK_BLOCKED
+        beq compare_wake_tick
+        ldr r0, [r0, #TCB_NEXT]
+        cmp r4, r0
+        beq fire_PendSV
+        b check_if_blocked
+
+    compare_wake_tick:
+        ldr r3, [r0, #TCB_WAKE_TICK]
+        cmp r1, r3
+        bhs make_ready
+        ldr r0, [r0, #TCB_NEXT]
+        cmp r4, r0
+        beq fire_PendSV
+        b check_if_blocked
+        
+    make_ready:
+        mov r1, #TASK_READY
+        str r1, [r0, #TCB_STATE]
+        ldr r0, [r0, #TCB_NEXT]
+        cmp r4, r0
+        beq fire_PendSV
+        b check_if_blocked
+    
+    fire_PendSV:
+    @firing PendSV handler through ICSR
+        ldr r0, =0xE000ED04
+        ldr r1, =0x10000000
+        str r1, [r0]
+        bx lr
+
+.global delay
+.section .text
+.align 4
+.thumb
+.syntax unified
+.type delay, %function
+delay :
+    cpsid i
+
+    ldr r1, =tick_count
+    ldr r2, [r1]
+
+    ldr r3, =current_tcb
+    ldr r4, [r3]
+    add r2, r2, r0 @r2 = tick_count + delay
+    str r2, [r4, #TCB_WAKE_TICK]
+    
+    mov r5, #TASK_BLOCKED
+    str r5, [r4, #TCB_STATE]
+
+    cpsie i
+    bx lr
 
 .section .text
 .align 4
@@ -131,8 +199,20 @@ pendsv_handler:
     stmdb r0!, {r4-r11}
 
     str r0, [r2,#TCB_PSP] @for updating the current task's PSP
-    
+
     ldr r3, [r2, #TCB_NEXT]
+    mov r4, r3 @remember where started
+    search_next_ready_task:
+        ldr r0, [r3, #TCB_STATE]
+        cmp r0, #TASK_READY
+        beq restore_context
+        ldr r3, [r3, #TCB_NEXT]
+        cmp r3, r4
+        beq no_ready_task_found
+        b search_next_ready_task
+
+    no_ready_task_found:
+        mov r3, r2 @stay on current task
 
     restore_context:    
         str r3, [r1]
@@ -151,4 +231,8 @@ _task1_stack_top:
 task2_stack:
 .space 1024
 _task2_stack_top:
+
+.global tick_count
+tick_count:
+    .word 0
 
