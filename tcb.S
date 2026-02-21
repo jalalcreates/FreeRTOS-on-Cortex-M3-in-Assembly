@@ -5,7 +5,7 @@
 .global tcb_task1
 .global tcb_task2
 .global current_tcb
-
+.global tcb_linked_list_head
 
 tcb_task1:
     .space TCB_SIZE
@@ -14,4 +14,7 @@ tcb_task2:
     .space TCB_SIZE
 
 current_tcb:
+    .word 0
+
+tcb_linked_list_head:
     .word 0
