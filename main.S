@@ -23,10 +23,31 @@ vector_table:
 .syntax unified
 .type reset_handler, %function 
 reset_handler:
-
+   @fake stack frame for task 1
     ldr r0, =_task1_stack_top
+    sub r0, r0, #32
+    
+    ldr r1, =task1_code
+    str r1, [r0, #24]
+
+    ldr r1, =0x01000000
+    str r1, [r0, #28]
+    
+    sub r0, r0, #32
+    mov r1, #0
+    str r1, [r0, #0]        
+    str r1, [r0, #4]        
+    str r1, [r0, #8]        
+    str r1, [r0, #12]       
+    str r1, [r0, #16]       
+    str r1, [r0, #20]       
+    str r1, [r0, #24]       
+    str r1, [r0, #28]       
+
     ldr r1, =tcb_task1
-    str r0, [r1, #TCB_PSP]
+    str r0, [r1,#TCB_PSP]
+
+
     msr psp, r0
 
     @fake stack frame for task 2
@@ -79,23 +100,35 @@ reset_handler:
     ldr r2, =tcb_linked_list_head
     str r0, [r2]
 
-    ldr r2, =current_tcb
-    str r0, [r2]
+ 
     
-@blocking task1 for testing code
-   @ ldr r0, =tcb_task1
-   @ mov r1, #TASK_BLOCKED
-   @ str r1, [r0, #TCB_STATE]
-   @ mov r1, #1000
-   @ str r1, [r0, #TCB_WAKE_TICK]
+@blocking task1 for testing purpose
+    ldr r0, =tcb_task1
+    mov r1, #TASK_READY
+    str r1, [r0, #TCB_STATE]
+ @   mov r1, #1000
+  @  str r1, [r0, #TCB_WAKE_TICK]
 
-   @ ldr r0, =tcb_task2
-   @ mov r1, #TASK_READY
-   @ str r1, [r0, #TCB_STATE]
+    ldr r0, =tcb_task2
+    mov r1, #TASK_READY
+    str r1, [r0, #TCB_STATE]
+
+@setting priorities for testing
+    mov r1, #0
+    str r1, [r0, #TCB_PRIORITY]
+
+    ldr r0, =tcb_task1
+    mov r1, #1
+    str r1, [r0, #TCB_PRIORITY]
+
 
     @for priority of PendSV and systick
     ldr r0, =0xE000ED20
     ldr r1, =0xFFFF0000
+    str r1, [r0]
+
+    ldr r0, =current_tcb
+    ldr r1, =tcb_task1
     str r1, [r0]
 
     mov r1, #0x0
@@ -104,10 +137,19 @@ reset_handler:
     b task1_code
 
 .section .text
+.align 4
+.thumb
+.thumb_func
+.type systick_handler, %function
 task1_code:
     add r5, r5, #1
     b task1_code
+
 .section .text
+.align 4
+.thumb
+.thumb_func
+.type systick_handler, %function
 task2_code:
     sub r6, r6, #1
     b task2_code
@@ -206,22 +248,38 @@ pendsv_handler:
     str r0, [r2,#TCB_PSP] @for updating the current task's PSP
 
     ldr r3, [r2, #TCB_NEXT]
-    mov r4, r3 @remember where started
+    mov r4, r3
+    mov r7, r2
+
     search_next_ready_task:
         ldr r0, [r3, #TCB_STATE]
         cmp r0, #TASK_READY
-        beq restore_context
+        beq check_priority
         ldr r3, [r3, #TCB_NEXT]
-        cmp r3, r4
-        beq no_ready_task_found
+        cmp r3, r7
+        beq restore_context
         b search_next_ready_task
 
-    no_ready_task_found:
-        mov r3, r2 @stay on current task
+    check_priority:
+        ldr r5, [r2, #TCB_PRIORITY] @remember interrupted task's priority
+        ldr r6, [r3, #TCB_PRIORITY]
+        cmp r6, r5
+        blo set_new_current
+        ldr r3, [r3, #TCB_NEXT]
+        cmp r3, r7
+        beq restore_context
+        b search_next_ready_task
+
+    set_new_current:
+        ldr r2, [r2, #TCB_NEXT]
+        ldr r3, [r3, #TCB_NEXT]
+        cmp r7, r3
+        beq restore_context
+        b search_next_ready_task
 
     restore_context:    
-        str r3, [r1]
-        ldr r0, [r3, #TCB_PSP]
+        str r2, [r1]
+        ldr r0, [r2, #TCB_PSP]
         ldmia r0!, {r4-r11}
         msr psp, r0
         bx lr

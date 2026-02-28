@@ -1,0 +1,27 @@
+FLASH (0x08000000 - 0x0801FFFF, 128KB)
+├── 0x08000000-0x0800003F: Vector Table (64 bytes)
+│   ├── 0x08000000: Initial MSP (0x20002000)
+│   ├── 0x08000004: Reset Handler (0x080001D1)
+│   ├── 0x08000008-0x08000034: Missing handlers (0x00000000) ← CRITICAL
+│   ├── 0x08000038: PendSV Handler (0x08000310)
+│   └── 0x0800003C: SysTick Handler (0x08000290)
+├── 0x08000040-0x0800039C: .text section (924 bytes)
+│   ├── reset_handler: 0x080001D1
+│   ├── task1_code: 0x08000290
+│   ├── task2_code: 0x08000298
+│   ├── systick_handler: 0x080002A0
+│   ├── delay: 0x080002E8
+│   └── pendsv_handler: 0x08000310
+└── 0x0800039C-0x0801FFFF: Unused
+
+RAM (0x20000000 - 0x20001FFF, 8KB)
+├── 0x20000000-0x200003FF: task1_stack (1024 bytes)
+│   └── _task1_stack_top: 0x20000400
+├── 0x20000400-0x200007FF: task2_stack (1024 bytes)
+│   └── _task2_stack_top: 0x20000800
+├── 0x20000800-0x20000817: tcb_task1 (24 bytes)
+├── 0x20000818-0x2000082F: tcb_task2 (24 bytes)
+├── 0x20000830-0x20000837: current_tcb (4 bytes)
+├── 0x20000838-0x2000083F: tcb_linked_list_head (4 bytes)
+├── 0x20000840-0x20000843: tick_count (4 bytes)
+└── 0x20000844-0x20001FFF: Unused
