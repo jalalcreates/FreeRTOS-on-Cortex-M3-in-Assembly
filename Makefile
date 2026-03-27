@@ -22,6 +22,8 @@ main.o: main.S
 # Assemble tcb
 tcb.o: tcb.S
 	$(AS) $(ASFLAGS) tcb.S -o tcb.o
+mutex.o: mutex.S
+	$(AS) $(ASFLAGS) mutex.S -o mutex.o
 
 # Link everything
 main.elf: $(OBJS)

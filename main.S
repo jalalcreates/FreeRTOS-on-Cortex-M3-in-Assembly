@@ -140,7 +140,7 @@ reset_handler:
 .align 4
 .thumb
 .thumb_func
-.type systick_handler, %function
+.type task1_code, %function
 task1_code:
     add r5, r5, #1
     b task1_code
@@ -149,9 +149,13 @@ task1_code:
 .align 4
 .thumb
 .thumb_func
-.type systick_handler, %function
+.type task2_code, %function
 task2_code:
     sub r6, r6, #1
+    push {r0}
+    mov r0, #10000
+    bl delay
+    pop {r0}
     b task2_code
 
 .section .text
@@ -196,7 +200,8 @@ systick_handler:
         cmp r4, r0
         beq fire_PendSV
         b check_if_blocked
-    
+        
+    .global fire_PendSV
     fire_PendSV:
     @firing PendSV handler through ICSR
         ldr r0, =0xE000ED04
