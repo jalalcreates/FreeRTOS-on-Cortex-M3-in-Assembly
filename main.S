@@ -1,5 +1,10 @@
 
 .include "tcb.inc"
+.global mutex_lock
+.global mutex_unlock
+.extern mutex_lock
+.extern mutex_unlock
+
 .equ systick_csr, 0xE000E010
 .equ systick_rvr, 0xE000E014
 .equ systick_cvr, 0xE000E018
@@ -142,7 +147,15 @@ reset_handler:
 .thumb_func
 .type task1_code, %function
 task1_code:
+   ldr r0, =UART_MUTEX
+   ldr r1, =tcb_task1
+    bl mutex_lock
+    
     add r5, r5, #1
+    
+    ldr r0, =UART_MUTEX
+    ldr r1, =tcb_task1
+    bl mutex_unlock
     b task1_code
 
 .section .text
@@ -151,11 +164,15 @@ task1_code:
 .thumb_func
 .type task2_code, %function
 task2_code:
-    sub r6, r6, #1
-    push {r0}
-    mov r0, #10000
+    ldr r0, =UART_MUTEX
+    ldr r1, =tcb_task2
+    bl mutex_lock
+    sub r6, r6, #1 
+    mov r0, #3
     bl delay
-    pop {r0}
+    ldr r0, =UART_MUTEX
+    ldr r1, =tcb_task2
+    bl mutex_unlock
     b task2_code
 
 .section .text
@@ -249,9 +266,14 @@ pendsv_handler:
     ldr r2, [r1]
     mrs r0, psp
     stmdb r0!, {r4-r11}
-
     str r0, [r2,#TCB_PSP] @for updating the current task's PSP
-
+    check_if_current_blocked:
+        ldr r8, [r2, #TCB_STATE]
+        mov r3, #TASK_BLOCKED
+        cmp r8, r3
+        itt eq
+        ldreq r2, [r2, #TCB_NEXT]
+        beq check_if_current_blocked
     ldr r3, [r2, #TCB_NEXT]
     mov r4, r3
     mov r7, r2
@@ -275,8 +297,8 @@ pendsv_handler:
         beq restore_context
         b search_next_ready_task
 
-    set_new_current:
-        ldr r2, [r2, #TCB_NEXT]
+    set_new_current:    
+        mov r2, r3
         ldr r3, [r3, #TCB_NEXT]
         cmp r7, r3
         beq restore_context

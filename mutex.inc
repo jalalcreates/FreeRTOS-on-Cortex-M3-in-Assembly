@@ -1,3 +1,3 @@
-.equ MUTEX_OWNER,      0
-.equ MUTEX_WAIT_LIST,  4
-.equ MUTEX_SIZE,       8
+.equ MUTEX_OWNER,0;
+.equ MUTEX_WAIT_LIST,4;
+.equ MUTEX_SIZE,8;

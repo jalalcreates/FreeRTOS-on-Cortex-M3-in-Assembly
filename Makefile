@@ -10,7 +10,7 @@ ASFLAGS = -mcpu=cortex-m3 -mthumb -g
 LDFLAGS = -T linker.ld
 
 # Object files
-OBJS = main.o tcb.o
+OBJS = main.o tcb.o mutex.o
 
 # Default target
 all: main.elf main.lst
@@ -42,8 +42,8 @@ run: main.elf
 debug:
 	$(GDB) -ex "target remote localhost:1234" \
 	       -ex "load" \
-	       -ex "b pendsv_handler" \
+	       -ex "b reset_handler" \
 	       main.elf
 
 clean:
-	rm -f *.o *.elf *.lst
+	-del /Q *.o *.elf *.lst 2>nul || (if exist *.o del /Q *.o) & (if exist *.elf del /Q *.elf) & (if exist *.lst del /Q *.lst)

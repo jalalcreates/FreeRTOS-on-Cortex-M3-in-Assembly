@@ -1,5 +1,7 @@
 .include "mutex.inc"
 .include "tcb.inc"
+.global fire_PendSV
+.extern fire_PendSV
 
 .section .bss
 .align 4
@@ -21,7 +23,6 @@ ANY_MUTEX:
 mutex_lock:
 @r0 = address of mutex
 @r1  = address of tcb 
-@r2 = address of mutex linked list head
 cpsid i
     ldr r3, [r0]
     mov r4, #0
@@ -41,8 +42,10 @@ cpsid i
         str r0, [r1, #MUTEX_WAIT]
         mov r4, #TASK_BLOCKED
         str r4, [r1, #TCB_STATE]
+        mov r5, #0
+        str r5, [r1, #MUTEX_NEXT]
         cpsie i
-        bx lr
+        b fire_PendSV
 
     find_list_end:
         mov r5, r3 @ save previous value to avoid 0
@@ -53,11 +56,13 @@ cpsid i
 
     add_to_list:
         str r1, [r5, #MUTEX_NEXT]
+        str r0, [r1, #MUTEX_WAIT]
         mov r4, #TASK_BLOCKED
-        str r4, [r1, #MUTEX_WAIT]
         str r4, [r1, #TCB_STATE]
+        mov r6, #0
+        str r6, [r1, #MUTEX_NEXT]
         cpsie i
-        bx lr
+        b fire_PendSV
 
 .section .text
 .align 4
@@ -68,7 +73,6 @@ cpsid i
 mutex_unlock:
     @r0 = address of mutex
 @r1  = address of tcb 
-@r2 = address of mutex linked list head
 cpsid i
     ldr r3, [r0, #MUTEX_WAIT_LIST]
     mov r4, #0

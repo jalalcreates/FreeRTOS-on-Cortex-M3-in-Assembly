@@ -1,27 +1,43 @@
 FLASH (0x08000000 - 0x0801FFFF, 128KB)
 ├── 0x08000000-0x0800003F: Vector Table (64 bytes)
 │   ├── 0x08000000: Initial MSP (0x20002000)
-│   ├── 0x08000004: Reset Handler (0x080001D1)
-│   ├── 0x08000008-0x08000034: Missing handlers (0x00000000) ← CRITICAL
-│   ├── 0x08000038: PendSV Handler (0x08000310)
+│   ├── 0x08000004: Reset Handler (0x080001D0)
+│   ├── 0x08000008-0x08000034: Missing handlers (0x00000000)
+│   ├── 0x08000038: PendSV Handler (0x08000320)
 │   └── 0x0800003C: SysTick Handler (0x08000290)
-├── 0x08000040-0x0800039C: .text section (924 bytes)
-│   ├── reset_handler: 0x080001D1
+├── 0x08000040-0x08000430: .text section (1072 bytes)
+│   ├── reset_handler: 0x080001D0
 │   ├── task1_code: 0x08000290
 │   ├── task2_code: 0x08000298
 │   ├── systick_handler: 0x080002A0
-│   ├── delay: 0x080002E8
-│   └── pendsv_handler: 0x08000310
-└── 0x0800039C-0x0801FFFF: Unused
+│   ├── fire_PendSV: 0x080002E8
+│   ├── pendsv_handler: 0x08000320
+│   ├── mutex_lock: 0x080003B0
+│   └── mutex_unlock: 0x080003E0
+└── 0x08000430-0x0801FFFF: Unused
 
 RAM (0x20000000 - 0x20001FFF, 8KB)
-├── 0x20000000-0x200003FF: task1_stack (1024 bytes)
+├── 0x20000000-0x20000400: task1_stack (1024 bytes)
 │   └── _task1_stack_top: 0x20000400
-├── 0x20000400-0x200007FF: task2_stack (1024 bytes)
+├── 0x20000400-0x20000800: task2_stack (1024 bytes)
 │   └── _task2_stack_top: 0x20000800
-├── 0x20000800-0x20000817: tcb_task1 (24 bytes)
-├── 0x20000818-0x2000082F: tcb_task2 (24 bytes)
-├── 0x20000830-0x20000837: current_tcb (4 bytes)
-├── 0x20000838-0x2000083F: tcb_linked_list_head (4 bytes)
-├── 0x20000840-0x20000843: tick_count (4 bytes)
-└── 0x20000844-0x20001FFF: Unused
+├── 0x20000800-0x20000804: tick_count (4 bytes)
+├── 0x20000810-0x20000830: tcb_task1 (32 bytes)
+│   ├── [0]  PSP
+│   ├── [4]  NEXT
+│   ├── [8]  PREV
+│   ├── [12] STATE
+│   ├── [16] WAKE_TICK
+│   ├── [20] PRIORITY
+│   ├── [24] MUTEX_WAIT
+│   └── [28] MUTEX_NEXT
+├── 0x20000830-0x20000850: tcb_task2 (32 bytes)
+│   └── (Same structure as tcb_task1)
+├── 0x20000850-0x20000854: current_tcb (4 bytes)
+├── 0x20000854-0x20000858: tcb_linked_list_head (4 bytes)
+├── 0x20000860-0x20000868: UART_MUTEX (8 bytes)
+│   ├── [0]  OWNER (TCB Address or 0)
+│   └── [4]  WAIT_LIST (TCB Address or 0)
+├── 0x20000868-0x20000870: ANY_MUTEX (8 bytes)
+│   └── (Same structure as UART_MUTEX)
+└── 0x20000870-0x20001FFF: Unused
